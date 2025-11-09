@@ -92,8 +92,20 @@ Learn more: [Listening to webhooks with Stripe CLI](https://stripe.com/docs/stri
 In `ProductService.cs`, securely map internal IDs to Stripe Price IDs:
 
 ```csharp
-{ "BASIC_COURSE", "price_1ABC..." }
+private readonly Dictionary<string, string> SecurePriceMap = new()
+{
+    { "premium_product_demo", "price_1SRScgBMXnXVzQYDfGALFJ1b" }
+};
 ```
+
+**Important:** Stripe Price IDs are account-specific and cannot be reused across different Stripe accounts. To run this demo:
+
+1. Create a product in your [Stripe Dashboard](https://dashboard.stripe.com/test/products)
+2. Add a price to that product
+3. Copy the Price ID (starts with `price_`)
+4. Replace `price_1SRScgBMXnXVzQYDfGALFJ1b` with your own Price ID in `ProductService.cs`
+
+The product ID `premium_product_demo` is what the frontend sends, but the actual Stripe Price ID must be from your own Stripe account.
 
 ### 3. Run the Project
 
@@ -206,24 +218,24 @@ public class WebhookController : ControllerBase
             string internalOrderId = session.Metadata.GetValueOrDefault("internal_order_id", "Unknown");
 
             bool updateOrderSuccess = _orderService.TryFulfillOrder(internalOrderId);
-			if (updateOrderSuccess)
-			{				
-				_logger.LogInformation("Order {OrderId} fulfillment complete (END). Status: FULFILLED.", internalOrderId);
-			}
-			else
-			{
-				var currentStatus = _orderService.GetCurrentStatus(internalOrderId);
-			
-				if (currentStatus == OrderStatus.Fulfilled)
-				{					
-					_logger.LogInformation("Order {OrderId} already fulfilled. Idempotent webhook.", internalOrderId);
-				}
-				else
-				{					
-					_logger.LogError("CRITICAL: Order {OrderId} fulfillment failed. Current status: {Status}. This indicates a state machine or concurrency issue.",
-						internalOrderId, currentStatus);
-				}
-			}
+            if (updateOrderSuccess)
+            {
+                _logger.LogInformation("Order {OrderId} fulfillment complete (END). Status: FULFILLED.", internalOrderId);
+            }
+            else
+            {
+                var currentStatus = _orderService.GetCurrentStatus(internalOrderId);
+            
+                if (currentStatus == OrderStatus.Fulfilled)
+                {
+                    _logger.LogInformation("Order {OrderId} already fulfilled. Idempotent webhook.", internalOrderId);
+                }
+                else
+                {
+                    _logger.LogError("CRITICAL: Order {OrderId} fulfillment failed. Current status: {Status}. This indicates a state machine or concurrency issue.",
+                        internalOrderId, currentStatus);
+                }
+            }
         }
 
         return Ok();
