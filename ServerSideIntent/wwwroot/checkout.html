@@ -1,0 +1,126 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stripe Checkout Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        /* Optional: Basic style to show loading state */
+        .loading-overlay {
+            display: none;
+        }
+
+            .loading-overlay.active {
+                display: flex;
+            }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+
+    <div class="w-full max-w-lg bg-white shadow-xl rounded-lg p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Checkout Demo: Premium Product</h1>
+
+        <div class="text-center mb-6">
+            <p class="text-xl font-semibold text-indigo-600">$49.99 USD</p>
+            <p class="text-sm text-gray-500">One-Time Payment</p>
+        </div>
+
+        <form id="checkout-form">
+            <div class="space-y-4 mb-6">
+                <label for="product_name" class="block text-sm font-medium text-gray-700">Item Details</label>
+                <div class="p-3 border border-gray-200 rounded-md bg-gray-50">
+                    <p class="font-medium text-gray-800">Demo Products Package</p>
+                    <p class="text-xs text-gray-500">Includes 1 year warrenty.</p>
+                </div>
+            </div>
+
+            <button id="checkout-button"
+                    type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-150 ease-in-out shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
+                Proceed to Payment
+            </button>
+
+            <div id="error-message" class="mt-4 text-red-600 text-sm hidden"></div>
+
+        </form>
+    </div>
+
+    <div id="loading-overlay" class="loading-overlay fixed inset-0 z-50 bg-gray-800 bg-opacity-75 items-center justify-center">
+        <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span class="text-white text-lg font-medium">Redirecting to Stripe...</span>
+    </div>
+
+    <script>
+        // 3. Initialize Stripe with your Publishable Key
+        // **IMPORTANT**: Replace 'YOUR_STRIPE_PUBLISHABLE_KEY' with your actual pk_test_... key
+        const stripe = Stripe('pk_test_51SQyWBBMXnXVzQYDBvUUQqlt6CV5YBCyWs7utZ3ZmEiOmSj77xkf6FIvGIdjjb6TaZ3LziGEQ3FkWrCEqcfdicqA000YBh1v72');
+
+        const form = document.getElementById('checkout-form');
+        const checkoutButton = document.getElementById('checkout-button');
+        const errorMessageContainer = document.getElementById('error-message');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            checkoutButton.disabled = true;
+            loadingOverlay.classList.add('active');
+            errorMessageContainer.textContent = '';
+            errorMessageContainer.classList.add('hidden');
+
+            try {
+                // Step 1: Call your C# Backend API to Create the Checkout Session
+                const response = await fetch('/api/checkout/create-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    // Send any necessary data for your backend to define the product/price
+                    body: JSON.stringify({
+                        itemId: 'premium_product_demo',
+                        quantity: 1
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to create Checkout Session on server.');
+                }
+
+                // Expecting a response body like: { sessionId: 'cs_test_...' }
+                const session = await response.json();
+
+                if (!session.sessionId) {
+                    throw new Error('Server did not return a valid session ID.');
+                }
+
+                // Step 2: Use Stripe.js to redirect the user to the Stripe-hosted Checkout page
+                const result = await stripe.redirectToCheckout({
+                    sessionId: session.sessionId,
+                });
+
+                if (result.error) {
+                    // This happens if there's an issue with the redirect itself (e.g., browser or network error)
+                    throw new Error(result.error.message);
+                }
+
+            } catch (error) {
+                // Handle all errors (API call failure, session ID missing, Stripe redirect error)
+                console.error('Checkout error:', error);
+                errorMessageContainer.textContent = `Error: ${error.message}`;
+                errorMessageContainer.classList.remove('hidden');
+
+            } finally {
+                // Re-enable the button and hide loading overlay if the redirect failed
+                checkoutButton.disabled = false;
+                loadingOverlay.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>
