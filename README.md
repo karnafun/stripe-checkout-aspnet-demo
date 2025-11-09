@@ -111,13 +111,13 @@ After payment, you'll be redirected to `/success` and see a JSON response showin
 You can also observe state transitions in the backend console logs.
 
 **Checkout Flow:**
-![Checkout Button](/docs/checkout-button.png)
+![Checkout Button](/Docs/checkout-button.png)
 
 **Webhook Processing:**
-![Stripe Webhook](/docs/stripe-webhook.png)
+![Stripe Webhook](/Docs/stripe-webhook.png)
 
 **Console Output:**
-![Console Log](/docs/console-log.png)
+![Console Log](/Docs/console-log.png)
 
 ---
 
